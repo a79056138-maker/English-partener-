@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="hi"><head><meta charset="utf-8"><title>English Partner AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1b1d2a;--mut:#6b7085;--pri:#4f46e5;--bd:#e3e5ee;--ai:#eceefa}
+@media(prefers-color-scheme:dark){:root{--bg:#12131a;--card:#1c1e29;--tx:#eceef7;--mut:#9a9fb5;--bd:#2c2f40;--ai:#262939}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif}
+#app{height:100%;max-width:560px;margin:auto;display:flex;flex-direction:column;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;margin:auto 0}
+h1{font-size:22px;margin:0 0 6px}p{color:var(--mut);margin:0 0 14px;font-size:14px}
+label{font-size:13px;color:var(--mut);display:block;margin:12px 0 6px}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px}
+button{width:100%;margin-top:14px;padding:13px;border:0;border-radius:10px;background:var(--pri);color:#fff;font-size:16px;font-weight:600}
+button.g{background:transparent;color:var(--pri);margin-top:6px}
+.err{color:#d33;font-size:13px;margin-top:8px}.ok{color:#198754;font-size:13px;margin-top:8px}
+#top{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;font-size:14px}
+#top a{color:var(--pri);font-size:13px}#msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.m{max-width:85%;padding:10px 13px;border-radius:14px;font-size:15px;line-height:1.45;white-space:pre-wrap}
+.u{align-self:flex-end;background:var(--pri);color:#fff}.a{align-self:flex-start;background:var(--ai)}
+#bar{display:flex;gap:8px;padding-top:10px}#bar button{width:auto;margin:0;padding:0 18px}
+</style></head><body><div id="app"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+// ====== STEP 1: Apni Firebase config yahan paste karo ======
+var firebaseConfig={apiKey:"AIzaSyAsQ7hRh8DN-CuomqqOjUgDHk7FEnDH47I",authDomain:"english-partener.firebaseapp.com",projectId:"english-partener",appId:"1:976928236409:web:c7a7a968e30dc3aaf245a8"};
+// ====== STEP 2 (baad mein): AI chat backend ka URL. Khali ho to chat demo mode mein chalegi ======
+var CHAT_URL="";
+// ============================================================
+firebase.initializeApp(firebaseConfig);var auth=firebase.auth();
+var LANGS=['Hindi','English','Bengali','Tamil','Telugu','Marathi','Gujarati','Punjabi','Urdu'];
+var S={mode:'login',known:'Hindi',learn:'English',level:'Beginner',hist:[],busy:false,msg:'',err:''};
+var app=document.getElementById('app');
+try{var p=JSON.parse(localStorage.getItem('prefs')||'null');if(p){S.known=p.known;S.learn=p.learn;S.level=p.level;S.set=true}}catch(e){}
+function opts(a,s){return a.map(function(x){return'<option'+(x===s?' selected':'')+'>'+x+'</option>'}).join('')}
+function $(i){return document.getElementById(i)}
+function fb(e){var c=e.code||'';return({'auth/email-already-in-use':'Ye email pehle se registered hai, login karo','auth/invalid-email':'Email sahi nahi hai','auth/weak-password':'Password kam se kam 6 akshar ka rakho','auth/invalid-credential':'Email ya password galat hai','auth/user-not-found':'Account nahi mila','auth/wrong-password':'Password galat hai','auth/too-many-requests':'Bahut try ho gaye, thodi der baad karo'})[c]||('Error: '+(e.message||c))}
+auth.onAuthStateChanged(function(u){S.user=u;S.err='';render()});
+function render(){
+ var u=S.user;
+ if(!u){var su=S.mode==='signup';
+  app.innerHTML='<div class="card"><h1>👋 English Partner</h1><p>'+(su?'Naya account banao':'Login karo')+'</p><label>Email</label><input id="em" type="email" placeholder="aap@example.com"><label>Password</label><input id="pw" type="password" placeholder="min 6 akshar"><div class="err">'+S.err+'</div><button id="go">'+(su?'Signup karo':'Login')+'</button><button class="g" id="sw">'+(su?'Account hai? Login karo':'Naya account banao')+'</button><button class="g" id="fp">Password bhool gaye?</button></div>';
+  $('sw').onclick=function(){S.mode=su?'login':'signup';S.err='';render()};
+  $('fp').onclick=function(){var e=$('em').value.trim();if(!e){S.err='Pehle email daalo';render();return}auth.sendPasswordResetEmail(e).then(function(){alert('Password reset link email par bhej diya')}).catch(function(x){S.err=fb(x);render()})};
+  $('go').onclick=function(){var e=$('em').value.trim(),w=$('pw').value;S.err='';
+   var pr=su?auth.createUserWithEmailAndPassword(e,w).then(function(c){return c.user.sendEmailVerification()}):auth.signInWithEmailAndPassword(e,w);
+   pr.catch(function(x){S.err=fb(x);render()})}}
+ else if(!u.emailVerified){
+  app.innerHTML='<div class="card"><h1>📧 Email verify karo</h1><p>Humne <b>'+u.email+'</b> par verification link bheja hai. Link par click karo (Spam folder bhi dekho), phir neeche button dabao.</p><div class="err">'+S.err+'</div><div class="ok">'+S.msg+'</div><button id="chk">Maine verify kar liya</button><button class="g" id="rs">Link dobara bhejo</button><button class="g" id="lo">Logout</button></div>';
+  $('chk').onclick=function(){u.reload().then(function(){S.err=u.emailVerified?'':'Abhi verify nahi hua';S.msg='';render()})};
+  $('rs').onclick=function(){u.sendEmailVerification().then(function(){S.msg='Link bhej diya ✅';S.err='';render()}).catch(function(x){S.err=fb(x);render()})};
+  $('lo').onclick=function(){auth.signOut()}}
+ else if(!S.set){
+  app.innerHTML='<div class="card"><h1>Language choose karo</h1><p>Aapko kaun si aati hai aur kaun si seekhni hai?</p><label>Mujhe aati hai</label><select id="k">'+opts(LANGS,S.known)+'</select><label>Mujhe seekhni hai</label><select id="l">'+opts(LANGS,S.learn)+'</select><label>Level</label><select id="v">'+opts(['Beginner','Intermediate','Advanced'],S.level)+'</select><div class="err">'+S.err+'</div><button id="go">Shuru karo</button></div>';
+  $('go').onclick=function(){if($('k').value===$('l').value){S.err='Dono language alag chuno';render();return}S.known=$('k').value;S.learn=$('l').value;S.level=$('v').value;S.set=true;try{localStorage.setItem('prefs',JSON.stringify({known:S.known,learn:S.learn,level:S.level}))}catch(e){}S.err='';render()}}
+ else{
+  app.innerHTML='<div id="top"><div><b>🗣️ '+S.learn+' Partner</b><br><small>Aap: '+S.known+' · '+S.level+'</small></div><div><a href="#" id="ch">Language badlo</a> · <a href="#" id="lo">Logout</a></div></div><div id="msgs"></div><div id="bar"><input id="in" placeholder="Yahan likho..."><button id="sd">Send</button></div>';
+  $('lo').onclick=function(e){e.preventDefault();S.hist=[];auth.signOut()};
+  $('ch').onclick=function(e){e.preventDefault();S.set=false;S.hist=[];render()};
+  $('sd').onclick=send;$('in').onkeydown=function(e){if(e.key==='Enter')send()};
+  if(!S.hist.length)S.hist.push({role:'assistant',content:'Hi! 👋 Main aapka '+S.learn+' partner hoon. Pehle batao, aapka naam kya hai?'});
+  S.hist.forEach(function(h){add(h.role==='user'?'u':'a',h.content)})}
+}
+function add(c,t){var d=document.createElement('div');d.className='m '+c;d.textContent=t;var m=$('msgs');m.appendChild(d);m.scrollTop=m.scrollHeight;return d}
+function send(){
+ var i=$('in'),t=i.value.trim();if(!t||S.busy)return;i.value='';add('u',t);S.hist.push({role:'user',content:t});
+ var d=add('a','...');
+ if(!CHAT_URL){d.textContent='(Demo mode) AI backend abhi juda nahi hai. Aapne likha: "'+t+'"';S.hist.push({role:'assistant',content:d.textContent});return}
+ S.busy=true;
+ auth.currentUser.getIdToken().then(function(tk){return fetch(CHAT_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({known:S.known,learn:S.learn,level:S.level,messages:S.hist.slice(-12)})})})
+ .then(function(r){return r.json()}).then(function(j){d.textContent=j.reply||'Jawab nahi aaya';S.hist.push({role:'assistant',content:d.textContent})})
+ .catch(function(){d.textContent='Error aaya, dobara try karo.'}).then(function(){S.busy=false})}
+render();
+</script></body></html>
